@@ -1,0 +1,5 @@
+{application, meshup, [ {description,  "MeshUp"}
+                      , {vsn,          git}
+                      , {registered,   []}
+                      , {applications, [kernel, stdlib]}
+                      ]}.
