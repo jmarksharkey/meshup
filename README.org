@@ -1,10 +1,5 @@
 -*- mode: org -*-
 
-     dBBBBBBb  dBBBP.dBBBBP   dBP dBP dBP dBP dBBBBBb
-      '   dB'       BP                            dB'
-   dB'dB'dB' dBBP   `BBBBb  dBBBBBP dBP dBP   dBBBP'
-  dB'dB'dB' dBP        dBP dBP dBP dBP_dBP   dBP
- dB'dB'dB' dBBBBP dBBBBP' dBP dBP dBBBBBP   dBP
 
 * RTFM
 ** Introduction
@@ -16,9 +11,9 @@ unspeakable things to the storage layer.
 
 More concretely, a MeshUp workflow is defined by providing
 implementations of three foundational interfaces:
-A `meshup_endpoint' describes the overall application logic, one or
-more `meshup_services' contribute pure primitives, and one or more
-`meshup_stores' control access to side-effects (most commonly
+A =meshup_endpoint= describes the overall application logic, one or
+more =meshup_services= contribute pure primitives, and one or more
+=meshup_stores= control access to side-effects (most commonly
 data stores).
 
 With such implementations in hand, the enterprising user calls
@@ -33,7 +28,7 @@ application around interfaces gives you for free.
 
 ** meshup_endpoint
 *** A brief aside on callbacks
-MeshUp extends Erlang's notion of a `callback' (i.e. a module
+MeshUp extends Erlang's notion of a =callback= (i.e. a module
 implementing a certain set of functions) with dynamic callbacks -
 basically closures over a method table.
 
@@ -55,6 +50,7 @@ flow/0 and post_commit/0, which we'll get into later.
 
 A static endpoint is implemented in the traditional way:
 
+#+BEGIN_EXAMPLE
 -module(my_endpoint).
 -behaviour(meshup_endpoint).
 -export([ flow/0
@@ -63,29 +59,36 @@ A static endpoint is implemented in the traditional way:
 
 flow() -> [ ... ].
 post_commit() -> [].
+#+END_EXAMPLE
 
 A dynamic endpoint can make use of runtime-information:
 
+#+BEGIN_EXAMPLE
 > MyEndpoint = meshup_endpoint:make(fun() -> ... end, fun() -> ... end).
+#+END_EXAMPLE
 
 or
 
+#+BEGIN_EXAMPLE
 > MyEndpoint = meshup_endpoint:new([ {flow,0},         fun() -> ... end
                                    , {post_commit, 0}, fun() -> ... end
                                    ]).
+#+END_EXAMPLE
 
 *** Workflows
-MeshUp (insightfully) views application logic as `a series of steps'
+MeshUp (insightfully) views application logic as =a series of steps=
 where each step is a call to a method of some meshup_service.
 An endpoint describes one specific series of steps via its flow/0
 callback function, which returns a list of {ServiceCallback, Method}
 tuples:
 
+#+BEGIN_EXAMPLE
 flow() ->
   [ {service_cb0, method0}
   , ...
   , {service_cbN, methodN}
   ].
+#+END_EXAMPLE
 
 Steps are performed in sequence until either a step fails or the end of
 the workflow is reached. Every running flow is associated with a a
@@ -105,6 +108,7 @@ Jump tables are lists of Rsn/Arrow/Handler triples, where each entry
 indicates that, rather than aborting on an error with error reason Rsn,
 control should pass to Handler and Arrow shows how to get there.
 
+#+BEGIN_EXAMPLE
 -type rsn()     :: atom().
 -type arrow()   :: '<=' | '<-' | '=>' | '->'.
 -type handler() :: {ServiceName::atom(), MethodName::atom()}.
@@ -119,6 +123,7 @@ flow() ->
   , {service_cbIp2, methodIp2}
   ...
   ].
+#+END_EXAMPLE
 
 Arrows point in the direction of the handler. Thick arrows cause a
 "call" to the handler - control will return to the current step after
@@ -127,7 +132,7 @@ control will proceed with the step following the handler once the
 handler returns.
 
 In the example above, methodIp1 will be skipped whenever methodI
-returns a `foo'-error.
+returns a =foo=-error.
 
 *** Suspending Flows & Flows of Flows
 WRITEME
@@ -149,10 +154,12 @@ functions.
 describe/2 has two clauses per method and should return the
 input/output contracts respectively for that method.
 
+#+BEGIN_EXAMPLE
 describe(method1, input)  -> [ ... ];
 describe(method1, output) -> [ ... ];
 ...
 describe(methodN, output) -> [ ... ];
+#+END_EXAMPLE
 
 Contracts are explained in detail below.
 
@@ -162,6 +169,7 @@ the in-context and passed to an existing function whose return value is
 then converted into an out-context and wrapped using meshup:ok/1 or
 meshup:error/1,2 to indicate success and failure respectively.
 
+#+BEGIN_EXAMPLE
 call(method1, InCtx) ->
   Arg1 = meshup_contexts:get(InCtx, ...),
   ...
@@ -173,12 +181,15 @@ call(method1, InCtx) ->
 ...
 call(methodN, InCtx) ->
   ...
+#+END_EXAMPLE
 
 sla(Method) should return an upper bound, in ms, on the expected
 running time of the method.
 
+#+BEGIN_EXAMPLE
 sla(method1) -> 10;
 sla(_)       -> infinity.
+#+END_EXAMPLE
 
 props/1 is currently unused, and should return the empty list.
 
@@ -210,10 +221,11 @@ namespace. In general, methods may consume names from any namespace but
 only produce names in the namespace associated with their service
 (identical to the service's name/0).
 There are two built-in namespaces. If the initial flow-context is
-non-empty, it must contain only names in the `input' namespace. Any
-service may contribute to the `shared' namespace (but shared names may
+non-empty, it must contain only names in the =input= namespace. Any
+service may contribute to the =shared= namespace (but shared names may
 not be stored directly, see below).
 
+#+BEGIN_EXAMPLE
 -module(myservice).
 -behaviour(meshup_service).
 
@@ -240,6 +252,7 @@ call(method, InCtx) ->
   end.
 
 name() -> myservice.
+#+END_EXAMPLE
 
 *** Annotations
 The model outline above works well so long as all data needed to
@@ -256,18 +269,20 @@ which is easier to express under somewhat relaxed contract rules.
 Each name in a contract may be associated with a list of
 key/value-annotations. The current implementation supports two:
 
-{store, StoreCallback} -- which meshup_store to read/write the name
-                          from/to
-{optional, boolean()}  -- optional names may or may not show up in the
-                          corresponding contexts
+- {store, StoreCallback} -- which meshup_store to read/write the name
+                            from/to
+- {optional, boolean()}  -- optional names may or may not show up in the
+                            corresponding contexts
 
 E.g.:
 
+#+BEGIN_EXAMPLE
 describe(method, input) -> [ [service, name1]
                            , {[service, name2], [ {store, mystore}
                                                 , {optional, true}
                                                 ]}
                            ].
+#+END_EXAMPLE
 
 *** The Pattern Language
 Contracts as described so far are sufficient for many cases, but do not
@@ -278,8 +293,10 @@ which depend on dynamic information.
 
 Let's say we want to read a user object from our database:
 
+#+BEGIN_EXAMPLE
 describe(method, input) -> [ {[myservice, user], [{store, mydb}]}
                            ];
+#+END_EXAMPLE
 
 ... which isn't very useful since we don't know _which_ user to fetch
 (the user ID is likely to be different for each execution of a flow
@@ -302,6 +319,7 @@ matched occurs.
 
 Our example above becomes:
 
+#+BEGIN_EXAMPLE
 describe(method, input) -> [ {[myservice, user, {id}], [{store, mydb}]}
                            ];
 ...
@@ -309,6 +327,7 @@ describe(method, input) -> [ {[myservice, user, {id}], [{store, mydb}]}
 call(method, Ctx) ->
   User = meshup_contexts:get(Ctx, [myservice, user, {id}]),
   ...
+#+END_EXAMPLE
 
 When deriving the in-context of a method from the flow-context, MeshUp
 will first match the list of patterns in the method's input contract
@@ -319,6 +338,7 @@ associated with them in the flow-context and passes that to the method.
 Here's a more elaborate version of our example which illustrates some
 additional features of MeshUp's pattern matcher:
 
+#+BEGIN_EXAMPLE
 describe(method, input) ->
   [ [input, user_id]                          %\  substitutions must
   , { [myservice, user, {{[input, user_id]}}] % \ point to a name
@@ -329,6 +349,7 @@ describe(method, input) ->
   , {[myservice, tab2, {key}], [{store, mydb}]} %/ contract scope
 
   ];
+#+END_EXAMPLE
 
 Here, MeshUp will attempt to get [myservice, user, ID] from the current
 flow-context, where ID is the _value_ associated with [input, user_id]
@@ -363,16 +384,16 @@ meshup_store is an abstract interface to read/write-style
 side-effects. The basic operations are del/1, get/1, and put/2.
 
 Conceptually, MeshUp calls
-  store_cb:get(Name)
+: store_cb:get(Name)
 when it encounters an input contract clause of the form
-  {Name, [{store, store_cb}]}
+: {Name, [{store, store_cb}]}
 and Name isn't in the current flow-context.
 
 If and only if a flow returns successfully, MeshUp will call
-  store_cb:put(Name, meshup_contexts:get(FinalCtx, Name)
+: store_cb:put(Name, meshup_contexts:get(FinalCtx, Name)
 for every item in the final context which was produced by a method
 which had a
-  {Name, [{store, store_cb}]}
+: {Name, [{store, store_cb}]}
 clause in its output contract.
 
 
@@ -380,15 +401,15 @@ MeshUp transparently converts between the value-representations
 expected by the application and the database.
 
 After reading a value from a store, MeshUp will call
-  store:bind(Name, Value)
+: store:bind(Name, Value)
 which should return a tuple {AppValue, Meta} where AppValue is the
 value that will be passed to the application and Meta will be given as
 an argument to return when writing the value back to the database.
 
 Before writing to a store, MeshUp calls either
-  store:return(Name, Value, Meta)
+: store:return(Name, Value, Meta)
 or
-  store:return(Name, Value)
+: store:return(Name, Value)
 depending on whether the value was updated or created.
 Return should return whatever put/2 expects to receive as its second
 argument.
@@ -403,6 +424,7 @@ error.
 
 For example, in the following flow:
 
+#+BEGIN_EXAMPLE
 [ {service, method1}
 , {service, method2}
 , ...
@@ -415,10 +437,11 @@ describe(method1, output) -> [ { [service, tab, key]
                              ];
 describe(method2, input)  -> [ [service, tab, key] ];
 describe(method2, output) -> [ [service, tab, key] ];
+#+END_EXAMPLE
 
 MeshUp will call
-  Name = [service, tab, key],
-  store_cb:merge(Name, meshup_contexts:get(CurrentCtx, Name), NewVal)
+: Name = [service, tab, key],
+: store_cb:merge(Name, meshup_contexts:get(CurrentCtx, Name), NewVal)
 where NewVal is the value associated with [service, tab, key] in
 method2's out-context to ensure that the local update is resolvable.
 
@@ -463,6 +486,7 @@ WRITEME
 We'll use the MeshUp shell to step through the example endpoint and
 services found in test/.
 
+#+BEGIN_EXAMPLE
   jakob@snarfbolg:/usr/home/jakob/git/meshup$ erl -pa .eunit -pz ../*/ebin
   Erlang R14B04 (erts-5.8.5) [source] [64-bit] [smp:8:8] [rq:8] [async-threads:0] [hipe] [kernel-poll:false]
 
@@ -498,11 +522,13 @@ services found in test/.
   =====
   [input,goods] ('':undefined) =>
     0 (init): [stuff,more_stuff]
+#+END_EXAMPLE
 
 We start the shell with an endpoint and an input context
 literal. MeshUp's pretty printer displays flows in the pseudo-Erlang
-notation seen above. The current instruction is highlighted by `<<<'.
+notation seen above. The current instruction is highlighted by =<<<=.
 
+#+BEGIN_EXAMPLE
   meshup> step
   ok
   meshup> print
@@ -529,10 +555,12 @@ notation seen above. The current instruction is highlighted by `<<<'.
     0 ({checkout,query_customer}): [stuff,more_stuff]
   [input,goods] ('':undefined) =>
     0 (init): [stuff,more_stuff]
+#+END_EXAMPLE
 
 After the first call, we have a new item in the flow context, and
 control is now at step two.
 
+#+BEGIN_EXAMPLE
   meshup> step
   ok
   meshup> print
@@ -561,10 +589,12 @@ control is now at step two.
     0 (init): [stuff,more_stuff]
   [id,suggestion] ('':undefined) =>
     0 ({id,identify_customer}): email
+#+END_EXAMPLE
 
-Notice that control reverted to f0, f1's `insufficient_data'-handler,
-and that the top-of-stack now contains `f1'.
+Notice that control reverted to f0, f1's =insufficient_data=-handler,
+and that the top-of-stack now contains =f1=.
 
+#+BEGIN_EXAMPLE
   meshup> step
   ok
   meshup> print
@@ -593,9 +623,11 @@ and that the top-of-stack now contains `f1'.
     0 (init): [stuff,more_stuff]
   [id,suggestion] ('':undefined) =>
     0 ({id,identify_customer}): email
+#+END_EXAMPLE
 
 The computation is now suspended, pending further input.
 
+#+BEGIN_EXAMPLE
   meshup> resume [[input, email], "foo@bar.baz"]
   ok
   meshup> print
@@ -660,9 +692,11 @@ The computation is now suspended, pending further input.
     0 ({checkout,query_customer}): "foo@bar.baz"
   [input,email] ('':undefined) =>
     0 (init): "foo@bar.baz"
+#+END_EXAMPLE
 
 After resuming and stepping again, we're back at f1.
 
+#+BEGIN_EXAMPLE
   meshup> step
   ok
   meshup> print
@@ -698,10 +732,12 @@ After resuming and stepping again, we're back at f1.
     0 ({checkout,query_customer}): "foo@bar.baz"
   [input,email] ('':undefined) =>
     0 (init): "foo@bar.baz"
+#+END_EXAMPLE
 
 f1 has used sophisticated identity-matching algorithms to determine the
 user. Control can finally proceed to f2.
 
+#+BEGIN_EXAMPLE
   meshup> step
   ok
   meshup> print
@@ -739,10 +775,12 @@ user. Control can finally proceed to f2.
     0 ({checkout,query_customer}): "foo@bar.baz"
   [input,email] ('':undefined) =>
     0 (init): "foo@bar.baz"
+#+END_EXAMPLE
 
 f2 manages to score the user right away, so we're ready to wrap things
 up.
 
+#+BEGIN_EXAMPLE
   meshup> step
   ok
   meshup> print
@@ -786,15 +824,19 @@ up.
   meshup> quit
   bye
   2>
+#+END_EXAMPLE
 
 The computation has finished successfully and the final context is
 ready for further processing.
 
 * Installation
+#+BEGIN_EXAMPLE
 jakob@angry.primat.es:~/git/klarna/meshup$ gmake
 jakob@angry.primat.es:~/git/klarna/meshup$ gmake test
+#+END_EXAMPLE
 
 * Manifest
+#+BEGIN_EXAMPLE
 include/:
 test.hrl                 -- Convenience macros for use in unit tests
 
@@ -823,5 +865,6 @@ meshup_test.erl          -- Test support
 meshup_test_services.erl -- Misc services for use in unit tests
 meshup_txn.erl           -- Generate a flow from a function.
 shared.hrl               -- Constants and macros
+#+END_EXAMPLE
 
 * eof
