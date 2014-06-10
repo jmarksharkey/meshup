@@ -72,7 +72,7 @@
 %% Service returns
 -type content()    :: ctx()
                     | meshup_contexts:literal().
--opaque return()   :: #return{}. %shared.hrl
+-type return()   :: #return{}. %shared.hrl
 
 %% Workflow status upon successful return of an API function.
 -type status()     :: {suspended, session_id(), ctx()}
