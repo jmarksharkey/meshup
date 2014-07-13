@@ -51,6 +51,10 @@
         , put_/4
         ]).
 
+-export([
+        search/3
+        ]).
+
 -export_type([ key/0
              , val/0
              , obj/0
@@ -91,6 +95,7 @@ behaviour_info(callbacks) ->
   , {put,    3}
   , {return, 2}
   , {return, 3}
+  , {search, 2}
   ];
 behaviour_info(_) -> undefined.
 
@@ -131,6 +136,8 @@ put(S, K, V)        -> meshup_callbacks:call(S, put,     [K, V]).
 put(S, K, V, O)     -> meshup_callbacks:call(S, put,     [K, V, O]).
 return(S, K, V)     -> meshup_callbacks:call(S, return,  [K, V]).
 return(S, K, V, M)  -> meshup_callbacks:call(S, return,  [K, V, M]).
+
+search(S, I, Q)     -> meshup_callbacks:call(S, search,  [I, Q]).
 
 %%%_ * Utilities -------------------------------------------------------
 %% Obj         = return(Key, Val)

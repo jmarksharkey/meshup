@@ -222,9 +222,11 @@ do_set(State0, Name, Annotations, Term, SM) ->
 %% this stage. Return success iff ALL of the writes succeed.
 write(State, ID, Mode) ->
   tulib_maybe:lift(?thunk(
-    F          = strat(Mode),
-    {ok, Rets} = F(do_write(ID), write_set(State)),
-    []         = [Err || {error, _} = Err <- Rets])).
+  %%F          = strat(Mode),
+  %%{ok, Rets} = F(do_write(ID), write_set(State)),
+  {M, F}          = strat(Mode),
+  {ok, Rets} = apply(M, F, [do_write(ID), write_set(State)]),
+  []         = [Err || {error, _} = Err <- Rets])).
 
 strat(async)      -> {tulib_par, eval};
 strat(in_process) -> {tulib_maybe, map};
