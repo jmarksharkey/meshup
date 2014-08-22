@@ -36,6 +36,8 @@
         , del/3
         , get/2
         , get/3
+        , fetch/2
+        , fetch/3
         , merge/4
         , put/3
         , put/4
@@ -45,6 +47,8 @@
 
 -export([ get_/2
         , get_/3
+        , fetch_/2
+        , fetch_/3
         , patch_/3
         , patch_/4
         , put_/3
@@ -90,6 +94,8 @@ behaviour_info(callbacks) ->
   , {del,    2}
   , {get,    1}
   , {get,    2}
+  , {fetch,  1}
+  , {fetch,  2}
   , {merge,  3}
   , {put,    2}
   , {put,    3}
@@ -131,6 +137,8 @@ del(S, K)           -> meshup_callbacks:call(S, del,     [K]).
 del(S, K, O)        -> meshup_callbacks:call(S, del,     [K, O]).
 get(S, K)           -> meshup_callbacks:call(S, get,     [K]).
 get(S, K, O)        -> meshup_callbacks:call(S, get,     [K, O]).
+fetch(S, K)         -> meshup_callbacks:call(S, fetch,   [K]).
+fetch(S, K, O)      -> meshup_callbacks:call(S, fetch,   [K, O]).
 merge(S, K, V1, V2) -> meshup_callbacks:call(S, merge,   [K, V1, V2]).
 put(S, K, V)        -> meshup_callbacks:call(S, put,     [K, V]).
 put(S, K, V, O)     -> meshup_callbacks:call(S, put,     [K, V, O]).
@@ -168,6 +176,16 @@ get_(Store, Key, Opts) ->
       {Val, _} = meshup_store:bind(Store, Key, Obj),
       Val
     end).
+
+fetch_(Store, Key) ->
+    get_(Store, Key, []).
+fetch_(Store, Key, Opts) ->
+    tulib_maybe:lift_with(
+        meshup_store:fetch(Store, Key, Opts),
+        fun(Obj) ->
+            {Val, _} = meshup_store:bind(Store, Key, Obj),
+            Val
+        end).
 
 
 put_(Store, Key, Val) ->
