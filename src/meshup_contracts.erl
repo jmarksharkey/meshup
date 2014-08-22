@@ -124,6 +124,7 @@ is_subpat(X)                      -> is_const(X) orelse
 
 is_const(X)                       -> is_atom(X)    orelse
                                      is_integer(X) orelse
+                                     is_binary(X) orelse
                                      (is_tuple(X) andalso size(X) > 1).
 
 is_var({V})                       -> is_atom(V);
